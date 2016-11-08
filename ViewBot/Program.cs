@@ -1,11 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Runtime.Serialization.Json;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
@@ -15,22 +11,16 @@ namespace ViewBot
 	{
 		static void Main(string[] args)
 		{
-			
-
-			while (true)
-			{
-				OpenUrl();	
-			}
-			
+			Parallel.For(0, 10, ConnectToStreamer);
 			
 			Console.Read();
 		}
 
-		static async void OpenUrl()
+		public static void ConnectToStreamer(int i)
 		{
 			Process cmd = new Process();
 			cmd.StartInfo.FileName = "livestreamer.exe";
-			cmd.StartInfo.Arguments = "--http-header Client-ID=ewvlchtxgqq88ru9gmfp1gmyt6h2b93 twitch.tv/risahashi -j";
+			cmd.StartInfo.Arguments = "--http-header Client-ID=ewvlchtxgqq88ru9gmfp1gmyt6h2b93 twitch.tv/cmpunkxecw -j";
 
 			cmd.StartInfo.RedirectStandardInput = true;
 			cmd.StartInfo.RedirectStandardOutput = true;
@@ -45,16 +35,23 @@ namespace ViewBot
 			WebRequest request = WebRequest.Create(ob.Streams.Audio.Url);
 			request.Timeout = 100;
 
-			try
+			while (true)
 			{
-				var res = await request.GetResponseAsync();
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine(ex.Message);
-			}
+				Task<WebResponse> res = res = request.GetResponseAsync();
+				try
+				{
+					 
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine(ex.Message);
+				}
 
-			Console.WriteLine(request.Headers);
+				Console.WriteLine($"Это поток {i}");
+				Console.WriteLine(res.Result.Headers);
+
+				Thread.Sleep(5000);
+			}
 		}
 	}
 }
