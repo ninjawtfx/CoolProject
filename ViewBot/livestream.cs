@@ -1,0 +1,7 @@
+﻿namespace ViewBot
+{
+	class livestream
+	{
+
+	}
+}
