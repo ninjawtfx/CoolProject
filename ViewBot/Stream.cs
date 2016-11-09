@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.Serialization;
 
 namespace ViewBot
 {
@@ -130,7 +125,7 @@ namespace ViewBot
 	}
 
 	[DataContract]
-	public class RootObject
+	public class StreamData
 	{
 		[DataMember(Name = "streams")]
 		public Streams Streams { get; set; }

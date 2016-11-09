@@ -1,26 +1,31 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using System.Configuration;
+using NLog;
+using xNet;
 
 namespace ViewBot
 {
 	class Program
 	{
+		private static string _urlRequest;
+		private static string _streamName;
+
+		private static Logger _logger;
+
 		static void Main(string[] args)
 		{
-			Parallel.For(0, 10, ConnectToStreamer);
-			
-			Console.Read();
-		}
+			var livestreamerPath = ConfigurationManager.AppSettings["LivestreamerPath"];
+			_streamName = $"twitch.tv/{ConfigurationManager.AppSettings["StreamName"]}";
 
-		public static void ConnectToStreamer(int i)
-		{
+			_logger = LogManager.GetCurrentClassLogger();
+
 			Process cmd = new Process();
 			cmd.StartInfo.FileName = "livestreamer.exe";
-			cmd.StartInfo.Arguments = "--http-header Client-ID=ewvlchtxgqq88ru9gmfp1gmyt6h2b93 twitch.tv/cmpunkxecw -j";
+			cmd.StartInfo.Arguments = $"--http-header Client-ID=ewvlchtxgqq88ru9gmfp1gmyt6h2b93 {_streamName} -j";
 
 			cmd.StartInfo.RedirectStandardInput = true;
 			cmd.StartInfo.RedirectStandardOutput = true;
@@ -28,29 +33,42 @@ namespace ViewBot
 			cmd.StartInfo.UseShellExecute = false;
 			cmd.Start();
 
-			string s = cmd.StandardOutput.ReadToEnd();
+			StreamData ob = JsonConvert.DeserializeObject<StreamData>(cmd.StandardOutput.ReadToEnd());
 
-			RootObject ob = JsonConvert.DeserializeObject<RootObject>(s);
+			_urlRequest = ob.Streams.Audio.Url;
 
-			WebRequest request = WebRequest.Create(ob.Streams.Audio.Url);
-			request.Timeout = 100;
+			var list = Proxies.GetProxies();
 
+			Parallel.ForEach(list, ConnectToStreamer); 
+
+			Console.Read();
+		}
+
+		public static void ConnectToStreamer(ProxyClient client)
+		{
 			while (true)
 			{
-				Task<WebResponse> res = res = request.GetResponseAsync();
-				try
+				using (var request = new HttpRequest())
 				{
-					 
-				}
-				catch (Exception ex)
-				{
-					Console.WriteLine(ex.Message);
-				}
+					request.UserAgent = Http.ChromeUserAgent();
+					request.Proxy = client;
 
-				Console.WriteLine($"Это поток {i}");
-				Console.WriteLine(res.Result.Headers);
+					HttpResponse res;
 
-				Thread.Sleep(5000);
+					try
+					{
+						res = request.Get(_urlRequest);
+					}
+					catch (Exception ex)
+					{
+						_logger.Trace(ex);
+						return;
+					}
+					
+					Console.WriteLine($"Это proxy {client.Host}");
+					Console.WriteLine(res.IsOK);
+
+				}
 			}
 		}
 	}
