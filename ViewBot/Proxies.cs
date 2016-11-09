@@ -22,8 +22,8 @@ namespace ViewBot
 		{
 			List<ProxyClient> list = new List<ProxyClient>();
 
-			list.AddRange(getProxiesFromFile(ProxyType.Socks4, "Socks4.txt"));
-			list.AddRange(getProxiesFromFile(ProxyType.Socks5, "Socks5.txt"));
+			//list.AddRange(getProxiesFromFile(ProxyType.Socks4, "Socks4.txt"));
+			//list.AddRange(getProxiesFromFile(ProxyType.Socks5, "Socks5.txt"));
 			list.AddRange(getProxiesFromFile(ProxyType.Http, "Http.txt"));
 
 			return list;
