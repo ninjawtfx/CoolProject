@@ -16,6 +16,7 @@ namespace ViewBot
 {
 	class Program
 	{
+		private static string _url;
 		private static string _streamName;
 
 		private static Logger _logger;
@@ -35,13 +36,30 @@ namespace ViewBot
 
 			Parallel.For(0, _list.Count, opt, ConnectToStreamer);
 
-		//	Parallel.ForEach(list, ConnectToStreamer);
+			//	Parallel.ForEach(list, ConnectToStreamer);
+
+			//for (int i = 0; i < _list.Count; i++)
+			//{
+			//	var task = new Thread(ConnectToStreamer);
+				
+			//	try
+			//	{
+			//		task.Start(i);
+			//	}
+			//	catch (Exception)
+			//	{
+			//		Console.WriteLine($"Dispose {task.ManagedThreadId}");
+			//		task.Interrupt();
+			//	}
+			//}
+
 
 			Console.Read();
 		}
 
-		public static async void ConnectToStreamer(int i)
+		public static void ConnectToStreamer(int i)
 		{
+
 			var livestreamerPath = $"{ConfigurationManager.AppSettings["LivestreamerPath"]}livestreamer.exe";
 
 			Process cmd = new Process();
@@ -56,50 +74,46 @@ namespace ViewBot
 
 			StreamData ob = JsonConvert.DeserializeObject<StreamData>(cmd.StandardOutput.ReadToEnd());
 
+			_url = ob.Streams.Audio.Url;
+
 			while (true)
 			{
 				using (var request = new HttpRequest())
 				{
-					var client = _list[i];
+					var client = _list[(int)i];
 
 					request.Proxy = client;
 
-					HttpRequestMessage requests = new HttpRequestMessage();
-					requests.RequestUri = new Uri(ob.Streams.Audio.Url);
-					requests.Method = System.Net.Http.HttpMethod.Head;
+					//HttpRequestMessage requests = new HttpRequestMessage();
+					//requests.RequestUri = new Uri(ob.Streams.Audio.Url);
+					//requests.Method = System.Net.Http.HttpMethod.Get;
 
-					HttpClientHandler hand = new HttpClientHandler
-					{
-						UseProxy = true,
-						Proxy = new WebProxy($"{client.Host}:{client.Port}")
-					};
+					//HttpClientHandler hand = new HttpClientHandler
+					//{
+					//	UseProxy = true,
+					//	Proxy = new WebProxy($"{client.Host}:{client.Port}")
+					//};
 
-					HttpClient cl = new HttpClient(hand);
+					//HttpClient cl = new HttpClient(hand);
 					
-					HttpResponseMessage res;
+					HttpResponse res;
 
 					try
 					{
-						res = await cl.SendAsync(requests);
-						//res = request.Get(ob.Streams.Audio.Url).ToString();
+						//res = await cl.SendAsync(requests);
+						res = request.Get(_url);
 					}
 					catch (Exception ex)
 					{
-						_logger.Trace(ex);
+						//	//_logger.Trace(ex);
 						return;
 					}
 
-					if (res.Headers.ConnectionClose != null && (bool) res.Headers.ConnectionClose)
-					{
-						return;
-					}
-					
-					Console.WriteLine($"Это proxy {client.Type}  --  {client.Host}:{client.Port}");
-					Console.WriteLine(res.Headers);
+					Console.WriteLine($"Отправлено {client.Type} - {client.Host}");
 				}
-
-				Thread.Sleep(50000);
-			}
+				
+				Thread.Sleep(5000);
+			} 
 		}
 	}
 }
