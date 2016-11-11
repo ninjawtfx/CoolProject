@@ -133,4 +133,14 @@ namespace ViewBot
 		public string Plugin { get; set; }
 	}
 
+	[DataContract]
+	public class Token
+	{
+		[DataMember(Name = "token")]
+		public string SToken { get; set; }
+
+		[DataMember(Name = "sig")]
+		public string Sig { get; set; }
+	}
+
 }

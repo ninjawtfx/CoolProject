@@ -12,7 +12,7 @@ namespace ViewBot
 
 			foreach (var line in File.ReadAllLines(fileName))
 			{
-				proxiesList.Add(ProxyClient.Parse(type, line));
+				proxiesList.Add(ProxyClient.Parse(type, line.Trim()));
 			}
 
 			return proxiesList;
