@@ -6,6 +6,7 @@ using System.Threading;
 using Newtonsoft.Json;
 using NLog;
 using xNet;
+using static System.String;
 
 namespace ViewBot
 {
@@ -17,6 +18,7 @@ namespace ViewBot
 		private static Logger _logger;
 
 		private static List<ProxyClient> _list;
+		private static List<ProxyClient> _tryList;
 
 		static void Main(string[] args)
 		{
@@ -28,8 +30,11 @@ namespace ViewBot
 			opt.MaxDegreeOfParallelism = 1000;
 
 			_list = Proxies.GetProxies();
+			_tryList = new List<ProxyClient>();
 
-			Parallel.For(0, _list.Count, opt, ConnectToStreamer);
+			Parallel.ForEach(_list, GetGoodProxies);
+
+			Parallel.For(0, _tryList.Count, opt, ConnectToStreamer);
 
 			//Parallel.ForEach(_list, ConnectToStreamer);
 
@@ -52,11 +57,65 @@ namespace ViewBot
 			Console.Read();
 		}
 
-		public static void ConnectToStreamer(int i)
+		public static void GetGoodProxies(ProxyClient client)
 		{
 			using (var request = new HttpRequest())
 			{
-				var client = _list[(int)i];
+				request.Proxy = client;
+
+				request.AddHeader("Client-ID", "m35gcmzfmcpybvz54e2j8iaz2phxxod");
+
+				var random = new Random().NextDouble();
+
+				try
+				{
+					var es = request.Get($"https://api.twitch.tv/api/channels/{_streamName}/access_token.json").ToString();
+
+					Token ob = JsonConvert.DeserializeObject<Token>(es);
+
+					var ss = request.Get($"http://usher.twitch.tv/api/channel/hls/{_streamName}.m3u8?player=twitchweb" +
+					                     $"&token={ob.SToken}" +
+					                     $"&sig={ob.Sig}&allow_audio_only=true&allow_source=true" +
+					                     $"&type=any&p={random}").ToString();
+					//_url = _url.Substring(0, _url.Length - 2);
+				}
+				catch (Exception)
+				{
+					return;
+				}
+
+				Console.WriteLine($"Add good proxie {client.Type} {client.Host}");
+
+				_tryList.Add(client);
+			}
+		}
+
+		#region livestreamer
+
+		///var livestreamerPath = $"{ConfigurationManager.AppSettings["LivestreamerPath"]}livestreamer.exe";
+
+		//request.Proxy = client;
+
+		//HttpRequestMessage requests = new HttpRequestMessage();
+		//requests.RequestUri = new Uri(ob.Streams.Audio.Url);
+		//requests.Method = System.Net.Http.HttpMethod.Get;
+
+		//HttpClientHandler hand = new HttpClientHandler
+		//{
+		//	UseProxy = true,
+		//	Proxy = new WebProxy($"{client.Host}:{client.Port}")
+		//};
+
+		//HttpClient cl = new HttpClient(hand);
+
+		#endregion
+
+		public static void ConnectToStreamer(int i)
+		{
+
+			using (var request = new HttpRequest())
+			{
+				var client = _list[(int) i];
 
 				request.Proxy = client;
 
@@ -71,11 +130,11 @@ namespace ViewBot
 					Token ob = JsonConvert.DeserializeObject<Token>(es);
 
 					var ss = request.Get($"http://usher.twitch.tv/api/channel/hls/{_streamName}.m3u8?player=twitchweb" +
-										 $"&token={ob.SToken}" +
-										 $"&sig={ob.Sig}&allow_audio_only=true&allow_source=true" +
-										 $"&type=any&p={random}").ToString();
+					                     $"&token={ob.SToken}" +
+					                     $"&sig={ob.Sig}&allow_audio_only=true&allow_source=true" +
+					                     $"&type=any&p={random}").ToString();
 
-					var sss = ss.Split('#')[4].Split(new[] { "http" }, StringSplitOptions.None);
+					var sss = ss.Split('#')[4].Split(new[] {"http"}, StringSplitOptions.None);
 
 					_url = "http" + sss[1];
 					//_url = _url.Substring(0, _url.Length - 2);
@@ -84,21 +143,7 @@ namespace ViewBot
 				{
 					return;
 				}
-				///var livestreamerPath = $"{ConfigurationManager.AppSettings["LivestreamerPath"]}livestreamer.exe";
 
-				//request.Proxy = client;
-
-				//HttpRequestMessage requests = new HttpRequestMessage();
-				//requests.RequestUri = new Uri(ob.Streams.Audio.Url);
-				//requests.Method = System.Net.Http.HttpMethod.Get;
-
-				//HttpClientHandler hand = new HttpClientHandler
-				//{
-				//	UseProxy = true,
-				//	Proxy = new WebProxy($"{client.Host}:{client.Port}")
-				//};
-
-				//HttpClient cl = new HttpClient(hand);
 
 				while (true)
 				{
@@ -121,6 +166,8 @@ namespace ViewBot
 					Console.WriteLine($"Отправлено {client.Type} - {client.Host}");
 				}
 			}
+
+
 			//Process cmd = new Process();
 			//cmd.StartInfo.FileName = livestreamerPath;
 			//cmd.StartInfo.Arguments = $"--http-header Client-ID=m35gcmzfmcpybvz54e2j8iaz2phxxod {_streamName} -j";
@@ -136,4 +183,5 @@ namespace ViewBot
 			//_url = ob.Streams.Audio.Url;
 		}
 	}
+
 }
