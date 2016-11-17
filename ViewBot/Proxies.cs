@@ -12,7 +12,10 @@ namespace ViewBot
 
 			foreach (var line in File.ReadAllLines(fileName))
 			{
-				proxiesList.Add(ProxyClient.Parse(type, line.Trim()));
+				var client = ProxyClient.Parse(type, line.Trim());
+				if(!proxiesList.Contains(client))
+					proxiesList.Add(client);
+				
 			}
 
 			return proxiesList;
@@ -22,9 +25,9 @@ namespace ViewBot
 		{
 			List<ProxyClient> list = new List<ProxyClient>();
 
-			list.AddRange(getProxiesFromFile(ProxyType.Socks4, "Socks4.txt"));
-			list.AddRange(getProxiesFromFile(ProxyType.Socks5, "Socks5.txt"));
-			//list.AddRange(getProxiesFromFile(ProxyType.Http, "Http.txt"));
+			//list.AddRange(getProxiesFromFile(ProxyType.Socks4, "Socks4.txt"));
+			//list.AddRange(getProxiesFromFile(ProxyType.Socks5, "Socks5.txt"));
+			list.AddRange(getProxiesFromFile(ProxyType.Http, "Http.txt"));
 
 			return list;
 		}

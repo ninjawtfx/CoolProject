@@ -29,30 +29,30 @@ namespace ViewBot
 
 			_list = Proxies.GetProxies();
 
-			//Parallel.For(0, _list.Count, opt, ConnectToStreamer);
+			Parallel.For(0, _list.Count, opt, ConnectToStreamer);
 
 			//Parallel.ForEach(_list, ConnectToStreamer);
 
-			for (int i = 0; i < _list.Count; i++)
-			{
-				var task = new Thread(ConnectToStreamer);
+			//for (int i = 0; i < _list.Count; i++)
+			//{
+			//	var task = new Thread(ConnectToStreamer);
 
-				try
-				{
-					task.Start(i);
-				}
-				catch (Exception)
-				{
-					Console.WriteLine($"Dispose {task.ManagedThreadId}");
-					task.Interrupt();
-				}
-			}
+			//	try
+			//	{
+			//		task.Start(i);
+			//	}
+			//	catch (Exception)
+			//	{
+			//		Console.WriteLine($"Dispose {task.ManagedThreadId}");
+			//		task.Interrupt();
+			//	}
+			//}
 
 
 			Console.Read();
 		}
 
-		public static void ConnectToStreamer(object i)
+		public static void ConnectToStreamer(int i)
 		{
 			using (var request = new HttpRequest())
 			{
