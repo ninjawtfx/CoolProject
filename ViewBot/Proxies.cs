@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-using xNet;
+using Extreme.Net;
 
 namespace ViewBot
 {
@@ -25,9 +25,10 @@ namespace ViewBot
 		{
 			List<ProxyClient> list = new List<ProxyClient>();
 
-			//list.AddRange(getProxiesFromFile(ProxyType.Socks4, "Socks4.txt"));
-			//list.AddRange(getProxiesFromFile(ProxyType.Socks5, "Socks5.txt"));
 			list.AddRange(getProxiesFromFile(ProxyType.Http, "Http.txt"));
+			//list.AddRange(getProxiesFromFile(ProxyType.Socks4, "Socks4.txt"));
+			list.AddRange(getProxiesFromFile(ProxyType.Socks5, "Socks5.txt"));
+			
 
 			return list;
 		}
