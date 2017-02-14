@@ -38,13 +38,29 @@ namespace ViewBot
 			_list = Proxies.GetProxies();
 			_tryList = new List<ProxyClient>();
 
+			int nWorkerThreads;
+			int nCompletionThreads;
+			ThreadPool.GetMaxThreads(out nWorkerThreads, out nCompletionThreads);
+
+			Console.WriteLine($"{nWorkerThreads} --- {nCompletionThreads}");
+
+			ThreadPool.SetMaxThreads(50, 50);
+			//ThreadPool.SetMinThreads(1000, 1000);
+
+			while (true)
+			{
+				for (int i = 0; i < _list.Count; i++)
+					ThreadPool.QueueUserWorkItem(ConnectToStreamer, i);
+
+				Thread.Sleep(10000000);
+			}
 			//Parallel.ForEach(_list, GetGoodProxies);
 
 			//Parallel.For(0, _list.Count, opt, ConnectToStreamer);
 
 			//while (true)
-			
-				Parallel.ForEach(_list, opt, ConnectToStreamer);
+
+			//Parallel.ForEach(_list, opt, ConnectToStreamer);
 			
 			//foreach(var proxy in _list)
 			//{ 
@@ -78,8 +94,10 @@ namespace ViewBot
 
 		#endregion
 
-		public async static void ConnectToStreamer(ProxyClient i)
+		public static async void ConnectToStreamer(object j)
 		{
+			ProxyClient i = _list[(int) j];
+
 			var handler = new ProxyHandler(i);
 
 			var request = new HttpRequestMessage();
@@ -95,10 +113,7 @@ namespace ViewBot
 
 				string es = string.Empty;
 
-				while (true)
-				{
-
-					try
+				try
 				{
 					request.RequestUri = new Uri($"https://api.twitch.tv/api/channels/{_streamName}/access_token.json");
 					es = await client.GetStringAsync(request.RequestUri.OriginalString);
@@ -112,7 +127,9 @@ namespace ViewBot
 
 				Token ob = JsonConvert.DeserializeObject<Token>(es);
 
-				
+				while (true)
+				{
+
 					try
 					{
 
@@ -139,19 +156,17 @@ namespace ViewBot
 						request.RequestUri = new Uri(urlTop);
 
 						var stri = await client.GetStringAsync(urlTop);
-
 						
-
 						Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}      Отправлено {i.Type} - {i.Host} - {i.Port}");
 
-						await Task.Delay(5000);
+						Thread.Sleep(5000);
 						
 						//_url = _url.Substring(0, _url.Length - 2);
 				}
 				catch (Exception)
 				{
-						return;		
-					}
+					
+				}
 			}
 
 
