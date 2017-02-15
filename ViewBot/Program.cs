@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Configuration;
+using System.Diagnostics;
 using System.Threading;
 using Newtonsoft.Json;
 using NLog;
@@ -44,7 +45,7 @@ namespace ViewBot
 
 			Console.WriteLine($"{nWorkerThreads} --- {nCompletionThreads}");
 
-			ThreadPool.SetMaxThreads(50, 50);
+			//ThreadPool.SetMaxThreads(200, 200);
 			//ThreadPool.SetMinThreads(1000, 1000);
 
 			while (true)
@@ -52,7 +53,7 @@ namespace ViewBot
 				for (int i = 0; i < _list.Count; i++)
 					ThreadPool.QueueUserWorkItem(ConnectToStreamer, i);
 
-				Thread.Sleep(10000000);
+				Thread.Sleep(10000);
 			}
 			//Parallel.ForEach(_list, GetGoodProxies);
 
@@ -61,7 +62,7 @@ namespace ViewBot
 			//while (true)
 
 			//Parallel.ForEach(_list, opt, ConnectToStreamer);
-			
+
 			//foreach(var proxy in _list)
 			//{ 
 			//	var task = new Thread(ConnectToStreamer);
@@ -94,58 +95,90 @@ namespace ViewBot
 
 		#endregion
 
+		public static async Task<Token> GetToken(HttpClient client)
+		{
+			string es = await client.GetStringAsync($"https://api.twitch.tv/api/channels/{_streamName}/access_token.json");
+
+			return JsonConvert.DeserializeObject<Token>(es);
+		}
+
+		private static readonly DateTime Jan1st1970 = new DateTime
+			(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+		public static long CurrentTimeMillis()
+		{
+			return (long)(DateTime.UtcNow - Jan1st1970).TotalMilliseconds;
+		}
+
 		public static async void ConnectToStreamer(object j)
 		{
 			ProxyClient i = _list[(int) j];
 
 			var handler = new ProxyHandler(i);
 
-			var request = new HttpRequestMessage();
+			var request = new HttpRequestMessage(HttpMethod.Head, "");
 
-			
+
 			using (var client = new HttpClient(handler))
 			{
-				client.DefaultRequestHeaders.Add("Client-ID", "m35gcmzfmcpybvz54e2j8iaz2phxxod");
 
-				var urlTop = string.Empty;
+				client.DefaultRequestHeaders.Add("Client-ID", "7sfbihg5e1b4ijo4obnsu9t4bme108");
+				client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36");
 
 				var random = new Random().NextDouble();
 
 				string es = string.Empty;
 
+				Token ob;
+
 				try
 				{
-					request.RequestUri = new Uri($"https://api.twitch.tv/api/channels/{_streamName}/access_token.json");
-					es = await client.GetStringAsync(request.RequestUri.OriginalString);
+					ob = await GetToken(client);
 				}
 
 				catch (Exception)
 				{
-					//	if (Thread.CurrentThread.Name == null)
 					return;
 				}
 
-				Token ob = JsonConvert.DeserializeObject<Token>(es);
+				var sw = new Stopwatch();
+
+				sw.Start();
 
 				while (true)
 				{
 
 					try
 					{
+						var ss = CurrentTimeMillis() / 1000;
+						
+						if (sw.Elapsed.Minutes > 1)
+						{
+							ob = await GetToken(client);
+							sw.Reset();
+						}
+					}
+					catch (Exception)
+					{
+						return;
+					}
+
+					try
+					{
+
+						var urlTop = string.Empty;
 
 						request.RequestUri = new Uri($"http://usher.twitch.tv/api/channel/hls/{_streamName}.m3u8?player=twitchweb" +
-											 $"&token={ob.SToken}" +
-											 $"&sig={ob.Sig}&allow_audio_only=true&allow_source=true" +
-											 $"&type=any&p={random}");
+														$"&token={ob.SToken}" +
+														$"&sig={ob.Sig}&allow_audio_only=true" +
+														$"&type=any&p={random}");
 
-						request.Method = HttpMethod.Get;
+						var ss = await client.GetStringAsync("http://usher.twitch.tv/api/channel/hls/{_streamName}.m3u8?player=twitchweb" +
+														$"&token={ob.SToken}" +
+														$"&sig={ob.Sig}&allow_audio_only=true" +
+														$"&type=any&p={random}");
 
-						var ss = await client.GetStringAsync($"http://usher.twitch.tv/api/channel/hls/{_streamName}.m3u8?player=twitchweb" +
-											 $"&token={ob.SToken}" +
-											 $"&sig={ob.Sig}&allow_audio_only=true&allow_source=true" +
-											 $"&type=any&p={random}");
-
-						var sss = ss.Split('#')[6].Split(new[] { "http", "\n" }, StringSplitOptions.None);
+						var sss = ss.Split('#')[14].Split(new[] {"http", "\n"}, StringSplitOptions.None);
 
 						urlTop = "http" + sss[2];
 
@@ -155,39 +188,43 @@ namespace ViewBot
 						request.Headers.Referrer = new Uri($"https://twitch.tv/{_streamName}");
 						request.RequestUri = new Uri(urlTop);
 
-						var stri = await client.GetStringAsync(urlTop);
-						
-						Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}      Отправлено {i.Type} - {i.Host} - {i.Port}");
+						var stri = await client.SendAsync(request);
 
-						Thread.Sleep(5000);
+						Console.WriteLine($"{stri.StatusCode} {Thread.CurrentThread.ManagedThreadId}      Отправлено {i.Type} - {i.Host} - {i.Port}");
 						
+						Thread.Sleep(4000);
+
 						//_url = _url.Substring(0, _url.Length - 2);
+					}
+
+					catch (Exception ex)
+					{
+						if (ex is ProxyException)
+							return;
+					}
 				}
-				catch (Exception)
-				{
-					
-				}
+
+
+
 			}
 
 
 
+			//Process cmd = new Process();
+			//cmd.StartInfo.FileName = livestreamerPath;
+			//cmd.StartInfo.Arguments = $"--http-header Client-ID=m35gcmzfmcpybvz54e2j8iaz2phxxod {_streamName} -j";
+
+			//cmd.StartInfo.RedirectStandardInput = true;
+			//cmd.StartInfo.RedirectStandardOutput = true;
+			//cmd.StartInfo.CreateNoWindow = true;
+			//cmd.StartInfo.UseShellExecute = false;
+			//cmd.Start();
+
+			//StreamData ob = JsonConvert.DeserializeObject<StreamData>(cmd.StandardOutput.ReadToEnd());
+
+			//_url = ob.Streams.Audio.Url;
 		}
 	}
-
-
-	//Process cmd = new Process();
-	//cmd.StartInfo.FileName = livestreamerPath;
-	//cmd.StartInfo.Arguments = $"--http-header Client-ID=m35gcmzfmcpybvz54e2j8iaz2phxxod {_streamName} -j";
-
-	//cmd.StartInfo.RedirectStandardInput = true;
-	//cmd.StartInfo.RedirectStandardOutput = true;
-	//cmd.StartInfo.CreateNoWindow = true;
-	//cmd.StartInfo.UseShellExecute = false;
-	//cmd.Start();
-
-	//StreamData ob = JsonConvert.DeserializeObject<StreamData>(cmd.StandardOutput.ReadToEnd());
-
-	//_url = ob.Streams.Audio.Url;
 }
-	}
+	
 
