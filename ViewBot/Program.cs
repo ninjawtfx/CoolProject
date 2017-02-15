@@ -173,10 +173,10 @@ namespace ViewBot
 														$"&sig={ob.Sig}&allow_audio_only=true" +
 														$"&type=any&p={random}");
 
-						var ss = await client.GetStringAsync("http://usher.twitch.tv/api/channel/hls/{_streamName}.m3u8?player=twitchweb" +
-														$"&token={ob.SToken}" +
-														$"&sig={ob.Sig}&allow_audio_only=true" +
-														$"&type=any&p={random}");
+						var ss = await client.GetStringAsync($"http://usher.twitch.tv/api/channel/hls/{_streamName}.m3u8?player=twitchweb" +
+											 $"&token={ob.SToken}" +
+											 $"&sig={ob.Sig}&allow_audio_only=true&allow_source=true" +
+											 $"&type=any&p={random}");
 
 						var sss = ss.Split('#')[14].Split(new[] {"http", "\n"}, StringSplitOptions.None);
 
@@ -188,11 +188,17 @@ namespace ViewBot
 						request.Headers.Referrer = new Uri($"https://twitch.tv/{_streamName}");
 						request.RequestUri = new Uri(urlTop);
 
-						var stri = await client.SendAsync(request);
+						HttpResponseMessage stri;
 
-						Console.WriteLine($"{stri.StatusCode} {Thread.CurrentThread.ManagedThreadId}      Отправлено {i.Type} - {i.Host} - {i.Port}");
 						
-						Thread.Sleep(4000);
+							using (var req = new HttpRequestMessage(HttpMethod.Head, urlTop))
+							{
+								stri = await client.SendAsync(req);
+							}
+						
+						Console.WriteLine($"{stri.StatusCode} {Thread.CurrentThread.ManagedThreadId}      Отправлено {i.Type} - {i.Host} - {i.Port}");
+
+						await Task.Delay(5000);
 
 						//_url = _url.Substring(0, _url.Length - 2);
 					}
@@ -224,7 +230,11 @@ namespace ViewBot
 
 			//_url = ob.Streams.Audio.Url;
 		}
+		private static object _lock = new object();
 	}
+
+	
+
 }
 	
 
