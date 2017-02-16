@@ -10,35 +10,42 @@ using Extreme.Net;
 using Extreme;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Remote;
 using static System.String;
 
 namespace ViewBot
 {
 	class Program
 	{
-		private static List<string> listAddedUrl = new List<string>();
+		private static RemoteWebDriver _webDriver;
+
+		private static object _locker = new object();
 
 		private static string _url;
-		private static string _streamName;
+		public static string StreamName;
 
 		private static Logger _logger;
 
 		private static List<ProxyClient> _list;
-		private static List<ProxyClient> _tryList;
-
+		
 		static void Main(string[] args)
 		{
 			Thread.CurrentThread.Name = "Main";
-			_streamName = ConfigurationManager.AppSettings["StreamName"];
+			StreamName = ConfigurationManager.AppSettings["StreamName"];
 
 			_logger = LogManager.GetCurrentClassLogger();
 
 			var opt = new ParallelOptions();
 			opt.MaxDegreeOfParallelism = 5000;
 
-			_list = Proxies.GetProxies();
-			_tryList = new List<ProxyClient>();
+			//for (int i = 0; i < _list.Count; i++)
+			//	ThreadPool.QueueUserWorkItem(ConnectToStreamer, i);
+			Proxies.GetProxies();
 
+			_list = Proxies.ProxyList;
+			
 			int nWorkerThreads;
 			int nCompletionThreads;
 			ThreadPool.GetMaxThreads(out nWorkerThreads, out nCompletionThreads);
@@ -48,13 +55,29 @@ namespace ViewBot
 			//ThreadPool.SetMaxThreads(200, 200);
 			//ThreadPool.SetMinThreads(1000, 1000);
 
-			while (true)
-			{
-				for (int i = 0; i < _list.Count; i++)
-					ThreadPool.QueueUserWorkItem(ConnectToStreamer, i);
+			var key = Console.ReadLine();
 
-				Thread.Sleep(10000);
+			switch (key)
+			{
+				case "1":
+					while (true)
+					{
+						for (int i = 0; i < _list.Count; i++)
+							ThreadPool.QueueUserWorkItem(ConnectToStreamer, i);
+
+						Thread.Sleep(10000);
+					}
+					break;
+				case "2":
+					ThreadPool.SetMaxThreads(1, 1);
+					for (int i = 0; i < _list.Count; i++)
+						//ThreadPool.QueueUserWorkItem(ViewByDriver, i);
+						ViewByDriver(i);
+
+					break;
 			}
+
+			
 			//Parallel.ForEach(_list, GetGoodProxies);
 
 			//Parallel.For(0, _list.Count, opt, ConnectToStreamer);
@@ -95,9 +118,72 @@ namespace ViewBot
 
 		#endregion
 
+		private static async void ViewByDriver(object i)
+		{
+			var proxy = _list[(int) i];
+
+			var handler = new ProxyHandler(proxy);
+			
+			using (var client = new HttpClient(handler))
+			{
+				client.DefaultRequestHeaders.Add("Client-ID", "7sfbihg5e1b4ijo4obnsu9t4bme108");
+				client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36");
+
+				try
+				{
+					await client.GetStringAsync("https://twitch.tv/skimmitar");
+				}
+				catch (Exception)
+				{
+					return;
+				}
+
+				Console.WriteLine($"Добавлена прокся {proxy.Host} - {proxy.Port}");
+			}
+
+			var chromeOptions = new ChromeOptions();
+			
+			Proxy proxyChrome = new Proxy();
+			proxyChrome.SslProxy = proxy.Host + ":" + proxy.Port;
+			proxyChrome.HttpProxy = proxy.Host + ":" + proxy.Port;
+
+			chromeOptions.Proxy = proxyChrome;
+			chromeOptions.AddArgument($"--proxy-server=\"{proxy.Host}:{proxy.Port}\"");
+			chromeOptions.AddArgument("--ignore-certificate-errors");
+			chromeOptions.AddArgument("--ignore-ssl-errors");
+
+			while (true)
+			{
+				Thread.Sleep(new Random().Next(5000, 15000));
+
+				if (Process.GetProcessesByName("chromedriver").Length < 5) 
+					break;
+			}
+
+			//lock (_locker)
+			//{
+
+			try
+			{
+
+				var webDriver = new ChromeDriver(chromeOptions);
+				webDriver.Navigate().GoToUrl("https://twitch.tv/skimmitar");
+
+				Thread.Sleep(new Random().Next(5000, 15000));
+
+				
+					webDriver.Dispose();
+				}
+				catch (Exception)
+				{
+
+				}
+			//}
+		}
+
 		public static async Task<Token> GetToken(HttpClient client)
 		{
-			string es = await client.GetStringAsync($"https://api.twitch.tv/api/channels/{_streamName}/access_token.json");
+			string es = await client.GetStringAsync($"https://api.twitch.tv/api/channels/{StreamName}/access_token.json");
 
 			return JsonConvert.DeserializeObject<Token>(es);
 		}
@@ -119,7 +205,7 @@ namespace ViewBot
 			var request = new HttpRequestMessage(HttpMethod.Head, "");
 
 
-			using (var client = new HttpClient(handler))
+			using (var client = new HttpClient())
 			{
 
 				client.DefaultRequestHeaders.Add("Client-ID", "7sfbihg5e1b4ijo4obnsu9t4bme108");
@@ -152,7 +238,7 @@ namespace ViewBot
 					{
 						var ss = CurrentTimeMillis() / 1000;
 						
-						if (sw.Elapsed.Minutes > 1)
+						if (sw.Elapsed.Seconds > 55)
 						{
 							ob = await GetToken(client);
 							sw.Reset();
@@ -168,7 +254,7 @@ namespace ViewBot
 
 						var urlTop = string.Empty;
 
-						request.RequestUri = new Uri($"http://usher.twitch.tv/api/channel/hls/{_streamName}.m3u8?player=twitchweb" +
+						request.RequestUri = new Uri($"http://usher.twitch.tv/api/channel/hls/{StreamName}.m3u8?player=twitchweb" +
 														$"&token={ob.SToken}" +
 														$"&sig={ob.Sig}&allow_audio_only=true" +
 														$"&type=any&p={random}");
@@ -182,10 +268,8 @@ namespace ViewBot
 
 						urlTop = "http" + sss[2];
 
-						string res = null;
-
 						//res = await cl.SendAsync(requests);
-						request.Headers.Referrer = new Uri($"https://twitch.tv/{_streamName}");
+						//request.Headers.Referrer = new Uri($"https://twitch.tv/{_streamName}");
 						request.RequestUri = new Uri(urlTop);
 
 						HttpResponseMessage stri;
@@ -196,7 +280,7 @@ namespace ViewBot
 								stri = await client.SendAsync(req);
 							}
 						
-						Console.WriteLine($"{stri.StatusCode} {Thread.CurrentThread.ManagedThreadId}      Отправлено {i.Type} - {i.Host} - {i.Port}");
+						Console.WriteLine($"{stri.StatusCode} {Thread.CurrentThread.ManagedThreadId}      Отправлено ");
 
 						await Task.Delay(5000);
 
@@ -205,6 +289,8 @@ namespace ViewBot
 
 					catch (Exception ex)
 					{
+						Console.WriteLine(ex.Message);
+
 						if (ex is ProxyException)
 							return;
 					}
