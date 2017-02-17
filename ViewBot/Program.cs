@@ -159,7 +159,7 @@ namespace ViewBot
 				{
 					Thread.Sleep(new Random().Next(5000, 15000));
 
-					if (Process.GetProcessesByName("chromedriver").Length < 5)
+					if (Process.GetProcessesByName("chrome").Length < 30)
 						break;
 				}
 			}
@@ -175,7 +175,7 @@ namespace ViewBot
 				Thread.Sleep(new Random().Next(5000, 15000));
 
 				
-					webDriver.Dispose();
+					webDriver.Close();
 				}
 				catch (Exception)
 				{
