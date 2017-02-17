@@ -152,14 +152,17 @@ namespace ViewBot
 			chromeOptions.AddArgument("--ignore-certificate-errors");
 			chromeOptions.AddArgument("--ignore-ssl-errors");
 
-			while (true)
+			lock (_locker)
 			{
-				Thread.Sleep(new Random().Next(5000, 15000));
 
-				if (Process.GetProcessesByName("chromedriver").Length < 5) 
-					break;
+				while (true)
+				{
+					Thread.Sleep(new Random().Next(5000, 15000));
+
+					if (Process.GetProcessesByName("chromedriver").Length < 5)
+						break;
+				}
 			}
-
 			//lock (_locker)
 			//{
 
@@ -259,7 +262,7 @@ namespace ViewBot
 														$"&sig={ob.Sig}&allow_audio_only=true" +
 														$"&type=any&p={random}");
 
-						var ss = await client.GetStringAsync($"http://usher.twitch.tv/api/channel/hls/{_streamName}.m3u8?player=twitchweb" +
+						var ss = await client.GetStringAsync($"http://usher.twitch.tv/api/channel/hls/{StreamName}.m3u8?player=twitchweb" +
 											 $"&token={ob.SToken}" +
 											 $"&sig={ob.Sig}&allow_audio_only=true&allow_source=true" +
 											 $"&type=any&p={random}");
