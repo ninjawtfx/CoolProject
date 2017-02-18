@@ -42,10 +42,11 @@ namespace ViewBot
 
 			//for (int i = 0; i < _list.Count; i++)
 			//	ThreadPool.QueueUserWorkItem(ConnectToStreamer, i);
-			Proxies.GetProxies();
-
-			_list = Proxies.ProxyList;
 			
+			
+			
+
+			Task.WaitAll(); 
 			int nWorkerThreads;
 			int nCompletionThreads;
 			ThreadPool.GetMaxThreads(out nWorkerThreads, out nCompletionThreads);
@@ -59,9 +60,17 @@ namespace ViewBot
 
 			switch (key)
 			{
+				case "0":
+					Proxies.GetProxies();
+					Proxies.CheckGoodProxies();
+
+					break;
+
 				case "1":
 					while (true)
 					{
+						Proxies.GetProxies();
+						_list = Proxies.ProxyList;
 						for (int i = 0; i < _list.Count; i++)
 							ThreadPool.QueueUserWorkItem(ConnectToStreamer, i);
 
@@ -69,6 +78,7 @@ namespace ViewBot
 					}
 					break;
 				case "2":
+					_list = Proxies.GetGoodProxies();
 					ThreadPool.SetMaxThreads(1, 1);
 					for (int i = 0; i < _list.Count; i++)
 						//ThreadPool.QueueUserWorkItem(ViewByDriver, i);
@@ -126,7 +136,7 @@ namespace ViewBot
 			
 			using (var client = new HttpClient(handler))
 			{
-				client.DefaultRequestHeaders.Add("Client-ID", "7sfbihg5e1b4ijo4obnsu9t4bme108");
+				client.DefaultRequestHeaders.Add("Client-ID", "pdtodjzoy25jv1gp4i60ri6qo7sjis");
 				client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36");
 
 				try
@@ -170,12 +180,12 @@ namespace ViewBot
 			{
 
 				var webDriver = new ChromeDriver(chromeOptions);
-				webDriver.Navigate().GoToUrl("https://twitch.tv/skimmitar");
+				webDriver.Navigate().GoToUrl("https://twitch.tv/azynka");
 
 				Thread.Sleep(new Random().Next(5000, 15000));
 
 				
-					webDriver.Close();
+					//webDriver.Close();
 				}
 				catch (Exception)
 				{
@@ -208,10 +218,10 @@ namespace ViewBot
 			var request = new HttpRequestMessage(HttpMethod.Head, "");
 
 
-			using (var client = new HttpClient())
+			using (var client = new HttpClient(handler))
 			{
 
-				client.DefaultRequestHeaders.Add("Client-ID", "7sfbihg5e1b4ijo4obnsu9t4bme108");
+				client.DefaultRequestHeaders.Add("Client-ID", "pdtodjzoy25jv1gp4i60ri6qo7sjis");
 				client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36");
 
 				var random = new Random().NextDouble();
@@ -240,7 +250,7 @@ namespace ViewBot
 					try
 					{
 						var ss = CurrentTimeMillis() / 1000;
-						
+
 						if (sw.Elapsed.Seconds > 55)
 						{
 							ob = await GetToken(client);
@@ -266,34 +276,40 @@ namespace ViewBot
 											 $"&token={ob.SToken}" +
 											 $"&sig={ob.Sig}&allow_audio_only=true&allow_source=true" +
 											 $"&type=any&p={random}");
+						_logger.Warn(ob.Sig);
+						_logger.Warn(ob.SToken);
 
-						var sss = ss.Split('#')[14].Split(new[] {"http", "\n"}, StringSplitOptions.None);
+						_logger.Warn(ss);
+
+						var sss = ss.Split('#')[10].Split(new[] {"http", "\n"}, StringSplitOptions.None);
 
 						urlTop = "http" + sss[2];
 
+						_logger.Warn(urlTop);
+
 						//res = await cl.SendAsync(requests);
-						//request.Headers.Referrer = new Uri($"https://twitch.tv/{_streamName}");
+						request.Headers.Referrer = new Uri($"https://twitch.tv/{StreamName}");
 						request.RequestUri = new Uri(urlTop);
 
-						HttpResponseMessage stri;
+						//StreamContent stri;
 
 						
 							using (var req = new HttpRequestMessage(HttpMethod.Head, urlTop))
 							{
-								stri = await client.SendAsync(req);
+								var stri = await client.GetStringAsync(urlTop);
+
+								
 							}
 						
-						Console.WriteLine($"{stri.StatusCode} {Thread.CurrentThread.ManagedThreadId}      Отправлено ");
+						Console.WriteLine($" {Thread.CurrentThread.ManagedThreadId}      Отправлено {i.Host} : {i.Port}");
+
 
 						await Task.Delay(5000);
-
 						//_url = _url.Substring(0, _url.Length - 2);
 					}
 
 					catch (Exception ex)
 					{
-						Console.WriteLine(ex.Message);
-
 						if (ex is ProxyException)
 							return;
 					}
